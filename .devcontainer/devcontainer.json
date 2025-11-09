@@ -1,5 +1,5 @@
 {
-    "name": "Choose the right LLM",
+    "name": "Event",
     "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
     "secrets": {
         "OPENAI_API_KEY": {
