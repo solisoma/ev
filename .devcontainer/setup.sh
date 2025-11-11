@@ -11,9 +11,6 @@ export UV_LINK_MODE=copy
 # Simplify the project for codespaces
 echo "Building uv environment..."
 
-uv remove sentence-transformers
-rm -f uv.lock
-
 # Now sync
 
 uv sync
