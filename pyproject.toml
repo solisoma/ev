@@ -3,5 +3,6 @@ name = "event"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "langsmith[openai-agents]>=0.4.42",
     "openai-agents>=0.5.0",
 ]
