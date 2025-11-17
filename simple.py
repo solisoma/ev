@@ -1,4 +1,6 @@
+import sys
 import asyncio
+import traceback
 from dotenv import load_dotenv
 from instructs import get_instructions, get_registration_instructions
 import os
@@ -9,28 +11,44 @@ from langsmith.wrappers import OpenAIAgentsTracingProcessor
 load_dotenv(override=True)
 MODEL = "gpt-4o-mini"
 PARAMS = {"url": os.getenv("ALLIANCE_MCP_SERVER"), "timeout": 30}
-LOCAL_PARAMS = {"command": "uv", "args": ["run", "evaluator.py"], "timeout": 30}
+# LOCAL_PARAMS = {"command": "uv", "args": ["run", "evaluator.py"], "timeout": 30}
 TURN_PROMPT = "Execute protocol. Check round_number and seconds_remaining."
 
 
 async def main():
-    session = SQLiteSession("Simple")
+    agent_id = sys.argv[1] if len(sys.argv) > 1 else "1"
+    session = SQLiteSession(f"Uburu_{agent_id}")
+    local_param = {
+        "command": "uv",
+        "args": ["run", "evaluator.py"],
+        "env": {"AGENT_ID": agent_id},
+        "timeout": 30
+    }
     async with MCPServerStreamableHttp(params=PARAMS) as mcp:
-        async with MCPServerStdio(params=LOCAL_PARAMS) as local_mcp:
+        async with MCPServerStdio(params=local_param) as local_mcp:
             agent = Agent(
-                name="Uburu", 
-                instructions=get_instructions(is_teamfocus=False), 
+                name=f"Uburu_{agent_id}", 
+                instructions=get_instructions(is_teamfocus=True), 
                 model=MODEL, 
                 mcp_servers=[mcp, local_mcp]
             )
+            print(f"Running agent {agent_id} .....")
             await Runner.run(agent, get_registration_instructions(), session=session, max_turns=50)
             print("Registered")
             while True:
                 print("=== TURN ===")
-                await Runner.run(agent, TURN_PROMPT, session=session, max_turns=50)
-                await asyncio.sleep(2)
-
+                try:
+                    await Runner.run(agent, TURN_PROMPT, session=session, max_turns=50)
+                except Exception as e:
+                    print(f"Error in agent {agent_id}: {e}")
+                    break
+                finally:
+                    await asyncio.sleep(2)
 
 if __name__ == "__main__":
-    set_trace_processors([OpenAIAgentsTracingProcessor()])
-    asyncio.run(main())
+    try:
+        set_trace_processors([OpenAIAgentsTracingProcessor()])
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error: {e}")
+        traceback.print_exc()

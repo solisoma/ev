@@ -11,10 +11,12 @@ from mcp.server.fastmcp import FastMCP
 load_dotenv(override=True)
 
 mcp = FastMCP("Uburu")
+UUIDS = ast.literal_eval(os.getenv("UUIDS"))
 TIMELINE: dict[str, list[str|int]] = {} #{"uuid": ["name", timestamp]}
 TEAMMATES = [] 
 TEAM_SECRET = os.getenv("TEAM_SECRET")
-MY_UUID = os.getenv("UUID")
+AGENT_ID = os.getenv("AGENT_ID")
+MY_UUID = UUIDS[int(AGENT_ID) - 1]
 pairing_schedule = [
     [(0, 1), (2, 3), (4, 5)],
     [(0, 2), (1, 4), (3, 5)],
