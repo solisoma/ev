@@ -35,15 +35,13 @@ def get_instructions(is_teamfocus: bool) -> str:
 # PHASE EXECUTION RULES
 MODE: {'TEAM' if is_teamfocus else 'STRATEGIC'}
 Execute phases in strict order: 1B → 2 → 3
-⚠️ NEVER skip ahead. Check phase status first, execute only the current incomplete phase.
+Complete all incomplete phases in one call. Move through phases sequentially.
 
-## WHICH PHASE TO EXECUTE?
-IF Phase 1B not done: Execute PHASE 1B below
-ELSE IF Phase 1B done AND Phase 2 not done: Execute PHASE 2 below
-ELSE IF Phase 2 done AND Phase 3 not done: Execute PHASE 3 below
-ELSE: All done, only execute STEP 1-2 of any phase
-
----
+## EXECUTION FLOW
+Check phase status and execute all incomplete phases:
+IF Phase 1B not done: Execute PHASE 1B, mark done, continue to check Phase 2
+IF Phase 2 not done: Execute PHASE 2, mark done, continue to check Phase 3
+IF Phase 3 not done: Execute PHASE 3, mark done
 
 ## PHASE 1B - Execute these steps in order:
 
@@ -66,7 +64,7 @@ STEP 5: FOR EACH recipient in recipients:
 → Save result as msg
 → CALL send_message(msg, private_id, recipient['player_name'])
 
-STEP 6: Mark Phase 1B done, STOP
+STEP 6: Mark Phase 1B done, continue to Phase 2
 
 Example:
 STEP 1: get_status("k24rdk") → game_status = {{'player_name': 'Cipher9509', 'round_number': 1, 'seconds_remaining': 58.2, ...}}
@@ -76,12 +74,8 @@ STEP 4: select_message_recipients(cats) → recipients = [6 items]
 STEP 5: Loop 6 times:
   generate_message("Oracle", "leader", game_status) → msg
   send_message(msg, "k24rdk", "Oracle")
-  generate_message("Oracle", "leader", game_status) → msg
-  send_message(msg, "k24rdk", "Oracle")
   ...continues for all 6...
 STEP 6: Mark Phase 1B done
-
----
 
 ## PHASE 2 - Execute these steps in order:
 
@@ -94,15 +88,13 @@ STEP 2: CALL listen_for_message(game_status)
 
 {p2_step3}
 
-STEP 4: Mark Phase 2 done, STOP
+STEP 4: Mark Phase 2 done, continue to Phase 3
 
 Example:
 STEP 1: get_status("k24rdk") → game_status = {{'round_number': 1, 'seconds_remaining': 36.5, ...}}
 STEP 2: listen_for_message(game_status) → rejoined = []
 STEP 3: choose_support_teammate(game_status) → partner = "Rune9509"
 STEP 4: Mark Phase 2 done
-
----
 
 ## PHASE 3 - Execute these steps in order:
 
@@ -116,7 +108,7 @@ STEP 2: CALL listen_for_message(game_status)
 STEP 3: CALL register_support(private_id, partner)
 → Use partner saved from Phase 2
 
-STEP 4: Mark Phase 3 done, STOP
+STEP 4: Mark Phase 3 done
 
 Example:
 STEP 1: get_status("k24rdk") → game_status = {{'round_number': 1, 'seconds_remaining': 16.8, ...}}
