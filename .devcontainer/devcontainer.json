@@ -8,6 +8,28 @@
         },
         "ALLIANCE_MCP_SERVER": {
             "description": "The URL of the Running Alliance MCP Server"
+        },
+        "UUIDS": {
+            "description": "Python list of UUIDs for teammate identification (e.g., ['uuid1', 'uuid2', ...])"
+        },
+        "TEAM_SECRET": {
+            "description": "Secret key for HMAC message signing and verification among teammates"
+        },
+        "NAMES": {
+            "description": "Nested Python list of agent names [[names_for_uuid1], [names_for_uuid2], ...]"
+        },
+        "LANGSMITH_TRACING": {
+            "description": "Enable LangSmith tracing (set to 'true' to enable)"
+        },
+        "LANGSMITH_API_KEY": {
+            "description": "Your LangSmith API key for tracing and monitoring",
+            "documentationUrl": "https://smith.langchain.com/settings"
+        },
+        "LANGSMITH_PROJECT": {
+            "description": "LangSmith project name for organizing traces (optional)"
+        },
+        "LANGSMITH_ENDPOINT": {
+            "description": "LangSmith endpoint URL (optional, defaults to https://api.smith.langchain.com)"
         }
     },
     "customizations": {
