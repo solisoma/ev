@@ -13,7 +13,7 @@ load_dotenv(override=True)
 MODEL = "gpt-4o-mini"
 PARAMS = {"url": os.getenv("ALLIANCE_MCP_SERVER"), "timeout": 30}
 # LOCAL_PARAMS = {"command": "uv", "args": ["run", "evaluator.py"], "timeout": 30}
-TURN_PROMPT = "Execute protocol. Check round_number and seconds_remaining."
+TURN_PROMPT = "Check Phase 1B first. If done, check Phase 2. If done, check Phase 3. Execute the first incomplete phase, then mark it done."
 
 with open("names.txt", "r") as f:
     NAMES = ast.literal_eval(f.read())

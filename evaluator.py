@@ -217,6 +217,34 @@ def categorize_players(game_status: str) -> dict:
     }
 
 @mcp.tool()
+def select_message_recipients(categories: dict) -> list[dict[str, str]]:
+    """
+    Select 6 message recipients from categorized players.
+    """
+    recipients = []
+    
+    # Leader gets 2 messages
+    leader = categories.get('leader', '')
+    if leader:
+        recipients.append({"player_name": leader, "category": "leader"})
+        recipients.append({"player_name": leader, "category": "leader"})
+    
+    # Build combined list in priority order
+    combined = []
+    for cat in ['mid_tier', 'supporters', 'strugglers', 'competitors']:
+        players = categories.get(cat, [])
+        for player in players:
+            combined.append({"player_name": player, "category": cat})
+        if len(combined) >= 4:
+            break
+    
+    # Pick first 4 from combined list
+    remaining = combined[:4]
+    recipients.extend(remaining)
+    
+    return recipients[:6]  # Ensure exactly 6
+
+@mcp.tool()
 def generate_message(
     target: str,
     category: Literal["supporters", "mid_tier", "strugglers", "leader", "competitors"],
