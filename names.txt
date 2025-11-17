@@ -1,0 +1,8 @@
+[
+    ["Cipher9509", "Rune9509", "Shade9509", "Frost9509", "Ember9509", "Sage9509", "Blitz9509", "Echo9509", "Vale9509", "Nexus9509"],
+    ["Apex617a", "Zion617a", "Raven617a", "Blade617a", "Iris617a", "Volt617a", "Jade617a", "Steel617a", "Mist617a", "Echo617a"],
+    ["Ridge9839", "Quill9839", "Onyx9839", "Fern9839", "Ash9839", "Cloud9839", "Flint9839", "Brook9839", "Stone9839", "Leaf9839"],
+    ["Pulse1084", "Spark1084", "Flash1084", "Drift1084", "Wave1084", "Bolt1084", "Glow1084", "Flux1084", "Rush1084", "Zen1084"],
+    ["Cliff6733", "Lake6733", "Pine6733", "Shore6733", "Peak6733", "Meadow6733", "Glen6733", "Tide6733", "Sand6733", "Oak6733"],
+    ["Void0df76", "Orbit0df76", "Beam0df76", "Core0df76", "Pulse0df76", "Star0df76", "Ray0df76", "Zone0df76", "Grid0df76", "Node0df76"]
+]
