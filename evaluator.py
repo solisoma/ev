@@ -5,16 +5,14 @@ import time
 import hashlib
 import statistics
 from typing import Literal
-from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-
-load_dotenv(override=True)
 
 mcp = FastMCP("Uburu")
 UUIDS = ast.literal_eval(os.getenv("UUIDS"))
 TIMELINE: dict[str, list[str|int]] = {} #{"uuid": ["name", timestamp]}
 TEAMMATES = [] 
 TEAM_SECRET = os.getenv("TEAM_SECRET")
+TEAM_NAMES = ast.literal_eval(os.getenv("NAMES"))
 AGENT_ID = os.getenv("AGENT_ID")
 MY_UUID = UUIDS[int(AGENT_ID) - 1]
 pairing_schedule = [
@@ -100,6 +98,18 @@ def add_my_name(my_name: str) -> bool:
         return True
     else:
         return False
+
+@mcp.tool()
+def get_teammates(game_status: str) -> list[str]:
+    """
+    Get the list of teammates from the game status
+    """
+    game_status = ast.literal_eval(game_status) if isinstance(game_status, str) else game_status
+    other_players = game_status['other_players']
+    team_names_set = {name for sublist in TEAM_NAMES for name in sublist}
+    
+    return [p['player_name'] for p in other_players if p['player_name'] in team_names_set]
+
 
 @mcp.tool()
 def broadcast_message(my_name: str) -> str:

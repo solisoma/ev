@@ -1,4 +1,5 @@
 import sys
+import ast
 import asyncio
 import traceback
 from dotenv import load_dotenv
@@ -14,6 +15,8 @@ PARAMS = {"url": os.getenv("ALLIANCE_MCP_SERVER"), "timeout": 30}
 # LOCAL_PARAMS = {"command": "uv", "args": ["run", "evaluator.py"], "timeout": 30}
 TURN_PROMPT = "Execute protocol. Check round_number and seconds_remaining."
 
+with open("names.txt", "r") as f:
+    NAMES = ast.literal_eval(f.read())
 
 async def main():
     agent_id = sys.argv[1] if len(sys.argv) > 1 else "1"
@@ -21,7 +24,7 @@ async def main():
     local_param = {
         "command": "uv",
         "args": ["run", "evaluator.py"],
-        "env": {"AGENT_ID": agent_id},
+        "env": {"AGENT_ID": agent_id, "UUIDS": os.getenv("UUIDS"), "TEAM_SECRET": os.getenv("TEAM_SECRET"), "NAMES": str(NAMES)},
         "timeout": 30
     }
     async with MCPServerStreamableHttp(params=PARAMS) as mcp:
@@ -33,7 +36,7 @@ async def main():
                 mcp_servers=[mcp, local_mcp]
             )
             print(f"Running agent {agent_id} .....")
-            await Runner.run(agent, get_registration_instructions(), session=session, max_turns=50)
+            await Runner.run(agent, get_registration_instructions(NAMES[int(agent_id) - 1]), session=session, max_turns=50)
             print("Registered")
             while True:
                 print("=== TURN ===")
