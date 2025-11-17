@@ -13,7 +13,7 @@ load_dotenv(override=True)
 MODEL = "gpt-4o-mini"
 PARAMS = {"url": os.getenv("ALLIANCE_MCP_SERVER"), "timeout": 30}
 # LOCAL_PARAMS = {"command": "uv", "args": ["run", "evaluator.py"], "timeout": 30}
-TURN_PROMPT = "Check Phase 1B first. If done, check Phase 2. If done, check Phase 3. Execute the first incomplete phase, then mark it done."
+TURN_PROMPT = "Check round. Execute next incomplete phase: Phase 1 (messages) OR Phase 2 (support at ≤20s). STOP after phase."
 
 with open("names.txt", "r") as f:
     NAMES = ast.literal_eval(f.read())
@@ -24,14 +24,13 @@ async def main():
     local_param = {
         "command": "uv",
         "args": ["run", "evaluator.py"],
-        "env": {"AGENT_ID": agent_id, "UUIDS": os.getenv("UUIDS"), "TEAM_SECRET": os.getenv("TEAM_SECRET"), "NAMES": str(NAMES)},
         "timeout": 30
     }
     async with MCPServerStreamableHttp(params=PARAMS) as mcp:
         async with MCPServerStdio(params=local_param) as local_mcp:
             agent = Agent(
                 name=f"Uburu_{agent_id}", 
-                instructions=get_instructions(is_teamfocus=True), 
+                instructions=get_instructions(), 
                 model=MODEL, 
                 mcp_servers=[mcp, local_mcp]
             )
