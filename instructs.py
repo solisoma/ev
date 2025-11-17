@@ -25,72 +25,102 @@ send_message("Cipher9509_1700150400123_95096a23_a3f2e8b9c4d5", "k24rdk", "Shade9
 STOP
 """
 
-
 def get_instructions(is_teamfocus: bool) -> str:
-    sync = """get_status(private_id) → game_status, listen_for_message(game_status) → rejoined, IF rejoined: broadcast+send to each 
-Sync Example:
-get_status("k24rdk") → game_status
-listen_for_message(game_status) → rejoined
-If rejoined = [] → Continue
-If rejoined = ["Player"] → broadcast_message(my_name) → bcast, send_message(bcast, private_id, "Player")"""
-    
     if is_teamfocus:
-        p2 = "choose_support_teammate(game_status) → partner (if None: retry 4x, fallback: choose_support_strategic)"
+        p2_step3 = "STEP 3: CALL choose_support_teammate(game_status) → save partner. If None: retry (max 4x). If still None: CALL choose_support_strategic(game_status, mid_tier) → save partner"
     else:
-        p2 = "choose_support_strategic(game_status, mid_tier) → partner"
+        p2_step3 = "STEP 3: CALL choose_support_strategic(game_status, mid_tier) → save partner"
 
     return f"""
-# RULES
-60s rounds, called every ~2s. Phases: 1B → 2 → 3 (once each). When round_number changes: reset flags.
+# PHASE EXECUTION RULES
 MODE: {'TEAM' if is_teamfocus else 'STRATEGIC'}
-Each preceeding phase must be completed before the next phase can be started.
+Execute phases in strict order: 1B → 2 → 3
+⚠️ NEVER skip ahead. Check phase status first, execute only the current incomplete phase.
 
-## PHASE 1B (seconds ≤ 60, not done)
-{sync}
-categorize_players(game_status) → cats
-select_message_recipients(cats) → recipients (list of 6)
-FOR EACH recipient in recipients:
-  generate_message(recipient['player_name'], recipient['category'], game_status) → msg
-  send_message(msg, private_id, recipient['player_name'])
-Mark phase 1B done
+## WHICH PHASE TO EXECUTE?
+IF Phase 1B not done: Execute PHASE 1B below
+ELSE IF Phase 1B done AND Phase 2 not done: Execute PHASE 2 below
+ELSE IF Phase 2 done AND Phase 3 not done: Execute PHASE 3 below
+ELSE: All done, only execute STEP 1-2 of any phase
 
-Example:
-get_status("k24rdk") → {{'player_name': 'Cipher9509', 'score': 0, 'round_number': 1, 'seconds_remaining': 58.2, ...}} save as game_status
-listen_for_message(game_status) → []
-categorize_players(game_status) → {{"leader": "Oracle", "mid_tier": ["NovaPulse", "Q"], "supporters": ["CosmoQuokka"], "strugglers": ["PlayerZXC"], "competitors": ["Strategic_Ally_Pro"]}} save as cats
-select_message_recipients(cats) → [{{"player_name": "Oracle", "category": "leader"}}, {{"player_name": "Oracle", "category": "leader"}}, {{"player_name": "NovaPulse", "category": "mid_tier"}} ...] save as recipients
+---
 
-FOR EACH recipient in recipients (6 total):
-generate_message(recipient['player_name'], recipient['category'], game_status) → msg
-send_message(msg, private_id, recipient['player_name'])
+## PHASE 1B - Execute these steps in order:
 
-Mark 1B done
+STEP 1: CALL get_status(private_id)
+→ Save result as game_status
 
-## PHASE 2 (seconds < 40, 1B done, not done)
-{sync}
-{p2}
-Mark phase 2 done
+STEP 2: CALL listen_for_message(game_status)
+→ Save result as rejoined
+→ If rejoined not empty: CALL broadcast_message(my_name) → save as bcast, FOR EACH in rejoined: CALL send_message(bcast, private_id, player)
 
-Example:
-get_status("k24rdk") → {{'player_name': 'Cipher9509', 'score': 0, 'round_number': 1, 'seconds_remaining': 36.5, 'other_players': [{{'player_name': 'Rune9509', 'score': 3, 'supported_you_last_round': False}} ...], 'messages_received_this_round': []}}
-listen_for_message(game_status) → []
-choose_support_teammate(game_status) → "Rune9509"
-Mark 2 done, partner = "Rune9509"
+STEP 3: CALL categorize_players(game_status)
+→ Save result as cats
 
-## PHASE 3 (seconds < 20, 2 done, not done)
-{sync}
-register_support(private_id, partner)
-Mark phase 3 done
+STEP 4: CALL select_message_recipients(cats)
+→ Pass cats from STEP 3
+→ Save result as recipients
+
+STEP 5: FOR EACH recipient in recipients:
+→ CALL generate_message(recipient['player_name'], recipient['category'], game_status)
+→ Save result as msg
+→ CALL send_message(msg, private_id, recipient['player_name'])
+
+STEP 6: Mark Phase 1B done, STOP
 
 Example:
-get_status("k24rdk") → {{'player_name': 'Cipher9509', 'score': 0, 'round_number': 1, 'seconds_remaining': 16.8, 'other_players': [{{'player_name': 'Rune9509', 'score': 3, 'supported_you_last_round': False}} ...], 'messages_received_this_round': []}}
-listen_for_message(game_status) → []
-register_support("k24rdk", "Rune9509")
+STEP 1: get_status("k24rdk") → game_status = {{'player_name': 'Cipher9509', 'round_number': 1, 'seconds_remaining': 58.2, ...}}
+STEP 2: listen_for_message(game_status) → rejoined = []
+STEP 3: categorize_players(game_status) → cats = {{"leader": "Oracle", "mid_tier": ["NovaPulse", "Q"], ...}}
+STEP 4: select_message_recipients(cats) → recipients = [6 items]
+STEP 5: Loop 6 times:
+  generate_message("Oracle", "leader", game_status) → msg
+  send_message(msg, "k24rdk", "Oracle")
+  generate_message("Oracle", "leader", game_status) → msg
+  send_message(msg, "k24rdk", "Oracle")
+  ...continues for all 6...
+STEP 6: Mark Phase 1B done
 
-# WORKFLOW
-Call 1 Phase 1B → sync, categorize, 6 messages → done
-Call 2 Phase 2 → sync, choose partner → done
-Call 3 Phase 3 → sync, register → done
-Calls 4-30: All done → sync only
-Call 31 Round 2: Reset → Phase 1B again
+---
+
+## PHASE 2 - Execute these steps in order:
+
+STEP 1: CALL get_status(private_id)
+→ Save result as game_status
+
+STEP 2: CALL listen_for_message(game_status)
+→ Save result as rejoined
+→ If rejoined not empty: CALL broadcast_message(my_name) → save as bcast, FOR EACH in rejoined: CALL send_message(bcast, private_id, player)
+
+{p2_step3}
+
+STEP 4: Mark Phase 2 done, STOP
+
+Example:
+STEP 1: get_status("k24rdk") → game_status = {{'round_number': 1, 'seconds_remaining': 36.5, ...}}
+STEP 2: listen_for_message(game_status) → rejoined = []
+STEP 3: choose_support_teammate(game_status) → partner = "Rune9509"
+STEP 4: Mark Phase 2 done
+
+---
+
+## PHASE 3 - Execute these steps in order:
+
+STEP 1: CALL get_status(private_id)
+→ Save result as game_status
+
+STEP 2: CALL listen_for_message(game_status)
+→ Save result as rejoined
+→ If rejoined not empty: CALL broadcast_message(my_name) → save as bcast, FOR EACH in rejoined: CALL send_message(bcast, private_id, player)
+
+STEP 3: CALL register_support(private_id, partner)
+→ Use partner saved from Phase 2
+
+STEP 4: Mark Phase 3 done, STOP
+
+Example:
+STEP 1: get_status("k24rdk") → game_status = {{'round_number': 1, 'seconds_remaining': 16.8, ...}}
+STEP 2: listen_for_message(game_status) → rejoined = []
+STEP 3: register_support("k24rdk", "Rune9509")
+STEP 4: Mark Phase 3 done
 """
