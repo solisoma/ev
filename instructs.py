@@ -1,4 +1,18 @@
-def get_registration_instructions(names: list[str]) -> str:
+def get_registration_instructions(names: list[str], is_teamfocus:bool = True) -> str:
+    if not is_teamfocus:
+        return f"""
+# REGISTRATION (complete these steps then STOP)
+Randomly choose from: {", ".join(names)}
+
+CALL: register(name) → GET: private_id (save this!)
+
+DONE! Registration complete. STOP HERE. Next call will handle game phases.
+
+Example:
+register("Cipher9509") → "k24rdk"
+STOP
+"""
+    
     return f"""
 # REGISTRATION (complete these steps then STOP)
 Randomly choose from: {", ".join(names)}
