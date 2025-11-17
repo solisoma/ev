@@ -1,96 +1,129 @@
+def get_registration_instructions() -> str:
+    return """
+ALLIANCE GAME - REGISTRATION PROTOCOL
+
+Execute these TOOL CALLS IN EXACT ORDER:
+
+STEP 1: Register with game server
+1. Choose a random player name
+2. TOOL CALL: register(player_name) - save the returned private_id
+3. TOOL CALL: add_my_name(player_name) - dont skip this tool call
+4. TOOL CALL: broadcast_message(player_name) - save the broadcast string
+5. TOOL CALL: get_status() - save as game_status
+6. FOR EACH player in game_status['other_players']:
+   TOOL CALL: send_message(broadcast, private_id, player['player_name'])
+
+Execute ALL tool calls sequentially. Registration complete after all players messaged.
+"""
+
+
 def get_instructions(is_teamfocus: bool) -> str:
     if is_teamfocus:
-        # Team mode: Try teammates first, fallback to strategic after 4 fails
         phase2_instructions = """
 PHASE 2: CHOOSE SUPPORT (TEAM-FIRST)
-When: seconds_remaining < 40 AND Phase 1B done AND Phase 2 not done
-───────────────────────────────────────────────────────────────
-TEAM-FIRST MODE: Prefer teammates, fallback to strategic if needed.
+Condition: seconds_remaining < 40 AND Phase 1B complete AND Phase 2 not complete.
 
-1. Call choose_support_teammate(game_status)
-2. IF returns a name: Save as partner, mark Phase 2 complete
-3. IF returns None: Retry on next call (max 4 attempts)
-4. After 4 failed teammate attempts:
-   - Fallback: choose_support_strategic(game_status, mid_tier)
-   - Save as partner, mark Phase 2 complete
+SYNC FIRST (Execute these tool calls before Phase 2 logic):
+1. TOOL CALL: get_status() - save as game_status
+2. TOOL CALL: listen_for_message(game_status) - save as rejoined
+3. If rejoined not empty:
+   TOOL CALL: broadcast_message(my_name) - save as broadcast
+   FOR EACH in rejoined: TOOL CALL: send_message(broadcast, private_id, player)
 
-Always register someone. Teammates preferred, strategic fallback available."""
-    
+AFTER SYNC COMPLETE, execute Phase 2:
+1. TOOL CALL: choose_support_teammate(game_status)
+2. If a name is returned: save partner, mark Phase 2 complete, stop
+3. If None: retry on next call (max 4 retries)
+4. After 4 failures: TOOL CALL: choose_support_strategic(game_status, mid_tier), save partner, mark complete, stop
+"""
     else:
-        # Strategic mode: Use strategic selection directly
         phase2_instructions = """
 PHASE 2: CHOOSE SUPPORT (STRATEGIC)
-When: seconds_remaining < 40 AND Phase 1B done AND Phase 2 not done
-───────────────────────────────────────────────────────────────
-STRATEGIC MODE: Use game theory to select best support target.
+Condition: seconds_remaining < 40 AND Phase 1B complete AND Phase 2 not complete.
 
-1. Call choose_support_strategic(game_status, mid_tier)
-   - This analyzes all players and picks optimal target
-   - May return teammate or non-teammate based on strategy
-2. Save as partner, mark Phase 2 complete
+SYNC FIRST (Execute these tool calls before Phase 2 logic):
+1. TOOL CALL: get_status() - save as game_status
+2. TOOL CALL: listen_for_message(game_status) - save as rejoined
+3. If rejoined not empty:
+   TOOL CALL: broadcast_message(my_name) - save as broadcast
+   FOR EACH in rejoined: TOOL CALL: send_message(broadcast, private_id, player)
 
-Pure strategic selection based on reciprocity and game state."""
+AFTER SYNC COMPLETE, execute Phase 2:
+1. TOOL CALL: choose_support_strategic(game_status, mid_tier)
+2. Save partner, mark Phase 2 complete, stop
+"""
 
     return f"""
-ALLIANCE GAME - 60 second rounds, multiple calls per round
+ALLIANCE GAME AGENT — STRICT SEQUENTIAL EXECUTION
+Rounds last 60 seconds.
+
+Registration executes ONLY if you have no player_name and private_id.
+If you have player_name and private_id, skip registration and go to phases.
 
 MODE: {'TEAM-FIRST' if is_teamfocus else 'STRATEGIC'}
 
-═══════════════════════════════════════════════════════════════
-REGISTRATION (First call ever):
-═══════════════════════════════════════════════════════════════
-1. Come up with a random player name and register as that player name should come from random.choice(A-Z)
-2. Call add_my_name(your_player_name)
-3. Call broadcast_message(your_player_name) → save broadcast string
-4. Get all players from game_status['other_players']
-5. FOR EACH player in other_players:
-   - Call send_message(broadcast_string, private_id, player_name)
+====================================================
+PHASE 1B — MESSAGE SENDING
+====================================================
+Condition: Phase 1B not complete AND seconds_remaining <= 60
 
-═══════════════════════════════════════════════════════════════
-EVERY CALL:
-═══════════════════════════════════════════════════════════════
+SYNC FIRST (Execute these tool calls before Phase 1B logic):
+1. TOOL CALL: get_status() - save as game_status
+2. TOOL CALL: listen_for_message(game_status) - save as rejoined
+3. If rejoined not empty:
+   TOOL CALL: broadcast_message(my_name) - save as broadcast
+   FOR EACH in rejoined: TOOL CALL: send_message(broadcast, private_id, player)
 
-STEP 1: SYNC TEAM STATE (Execute EVERY call)
-───────────────────────────────────────────────────────────────
-A) get_status() → save as game_status
-B) listen_for_message(game_status) → returns rejoined_players list
-C) IF rejoined_players not empty:
-   - broadcast = broadcast_message(my_name)
-   - FOR EACH in rejoined_players: send_message(broadcast, private_id, player)
+AFTER SYNC COMPLETE, execute Phase 1B:
 
-───────────────────────────────────────────────────────────────
+Messaging Rules (MAX 6 messages per round):
+- Leader: 2 messages first
+- Remaining 4 messages in priority order: mid_tier, supporters, strugglers, competitors
 
-STEP 2: EXECUTE PHASES (Once per round each)
-───────────────────────────────────────────────────────────────
+Tool calls in order:
+1. TOOL CALL: categorize_players(game_status) - save as categories
+2. TOOL CALL: generate_message(categories['leader'], 'leader', game_status) - save as msg
+3. TOOL CALL: send_message(msg, private_id, categories['leader'])
+4. TOOL CALL: send_message(msg, private_id, categories['leader']) - second message to leader
+5. FOR up to 4 more players (priority order):
+   TOOL CALL: generate_message(player, category, game_status) - save as msg
+   TOOL CALL: send_message(msg, private_id, player)
+6. When 6 messages sent: mark Phase 1B complete
 
-PHASE 1B: SEND MESSAGES
-When: seconds_remaining <= 60 AND Phase 1B not done this round
-───────────────────────────────────────────────────────────────
-1. categories = categorize_players(game_status)
-2. Leader (2 messages):
-   - msg = generate_message(leader, 'leader', game_status)
-   - send_message(msg, private_id, leader) twice
-3. ALL supporters (1 each):
-   - FOR EACH: generate_message + send_message
-4. ALL mid_tier (1 each):
-   - FOR EACH: generate_message + send_message
-5. ALL strugglers (1 each):
-   - FOR EACH: generate_message + send_message
-6. ALL competitors (1 each):
-   - FOR EACH: generate_message + send_message
-7. Mark Phase 1B complete
-
-───────────────────────────────────────────────────────────────
-
+====================================================
 {phase2_instructions}
+====================================================
 
-───────────────────────────────────────────────────────────────
+PHASE 3 — REGISTER SUPPORT
+====================================================
+Condition: seconds_remaining < 20 AND Phase 2 complete AND Phase 3 not complete
 
-PHASE 3: REGISTER SUPPORT
-When: seconds_remaining < 20 AND Phase 2 done AND Phase 3 not done
-───────────────────────────────────────────────────────────────
-1. IF partner exists: register_support(private_id, partner)
+SYNC FIRST (Execute these tool calls before Phase 3 logic):
+1. TOOL CALL: get_status() - save as game_status
+2. TOOL CALL: listen_for_message(game_status) - save as rejoined
+3. If rejoined not empty:
+   TOOL CALL: broadcast_message(my_name) - save as broadcast
+   FOR EACH in rejoined: TOOL CALL: send_message(broadcast, private_id, player)
+
+AFTER SYNC COMPLETE, execute Phase 3:
+1. If partner exists: TOOL CALL: register_support(private_id, partner)
 2. Mark Phase 3 complete
 
-Track round_number. New round = reset all phase flags.
+====================================================
+ROUND TRACKING
+====================================================
+- Track round_number from get_status()
+- When round_number changes: reset Phase 1B/2/3 flags, retry counters, message counts
+- Never execute same phase twice in one round
+- Always follow order: Registration (once) then Phase 1B then Phase 2 then Phase 3
+
+====================================================
+STRICT RULES
+====================================================
+- Execute SYNC (get_status + listen_for_message) before EACH phase
+- Call tools in the EXACT order shown
+- NEVER skip a tool call in a sequence
+- NEVER reorder tool calls
+- NEVER exceed 6 messages in Phase 1B
+- Save tool results and use them in subsequent calls
 """
