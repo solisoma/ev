@@ -1,82 +1,88 @@
-def get_registration_instructions(names: list[str]) -> str:
-    return f"""
-# REGISTRATION (complete these steps then STOP)
-Randomly choose from: {", ".join(names)}
+import json
+from agents import Runner
 
-CALL: register(name) → GET: private_id (save this!)
+class GameOrchestrator:
+    def __init__(self, agent, session):
+        self.agent = agent
+        self.session = session
+        self.current_round = -1
+        self.phase1_done = False
+        self.phase2_done = False
+        
+    async def register(self, names: list[str]):
+        """Simple registration"""
+        prompt = f"Randomly select a name from {", ".join(names)} and call register with the selected name"
+        await Runner.run(self.agent, prompt, session=self.session, max_turns=5)
+        print("Registered successfully")
+        
+    async def execute_phase1(self, game_status: dict):
+        """Send all messages"""
+        prompt = f"""
+    Execute these steps in order:
+    here is the game status: {game_status}, dont remove any fields when passing it to the functions
+    STEP 1: prepare_message(game_status) → save as messages_to_send
+    STEP 2: for each player in messages_to_send, call send_message(player['player_name'], player['message'])
+    Stop when done.
 
-DONE! Registration complete. STOP HERE. Next call will handle game phases.
+    if all steps were executed successfully, return true, otherwise return false
+    """
+        r = await Runner.run(self.agent, prompt, session=self.session, max_turns=20)
+        print(f"Phase 1 result: {r.final_output}")
+        self.phase1_done = r.final_output == "true"
+        
+    async def execute_phase2(self, game_status: dict):
+        """Register support"""
+        prompt = f"""
+    Execute these steps in order:
+    here is the game status: {game_status}, dont remove any fields when passing it to the functions
+    STEP 1: choose_support_strategic(game_status) → save as partner
+    STEP 2: register_support(game_status['private_id'], partner)
+    Stop when done.
 
-Example:
-register("Cipher9509") → "k24rdk"
-STOP
-"""
+    if all steps were executed successfully, return true, otherwise return false
+    """
+        r = await Runner.run(self.agent, prompt, session=self.session, max_turns=10)
+        print(f"Phase 2 result: {r.final_output}")
+        self.phase2_done = r.final_output == "true"
+        
+    async def run_turn(self):
+        """Main game loop - Python decides what to do"""
+        # Get game status
+        print("=== Turn ===")
+        prompt = """Call get_status(private_id).
+    Return ONLY the exact JSON dictionary returned by get_status. Nothing else.
+    Format:
+    {"player_name": "...", "private_id": "...", "score": ..., "round_number": ..., "seconds_remaining": ..., "other_players": [...], "messages_received_this_round": [...]}
+    Do NOT add:
+    - No explanations
+    - No "Here is the result:"
+    - No "The status is:"
+    - Just the raw JSON dictionary"""
 
-def get_instructions() -> str:
-    return """
-# PHASE-BASED STRATEGY
+        result = await Runner.run(self.agent, prompt, session=self.session, max_turns=3)
+        result_str = result.final_output
+        if '```' in result_str:
+            start = result_str.find('{')
+            end = result_str.rfind('}') + 1
+            result_str = result_str[start:end]
+        game_status = json.loads(result_str)
+        round_num = game_status['round_number']
+        seconds = game_status['seconds_remaining']
 
-Track: current_round, phase1_done, phase2_done
-
-## Check Status First
-CALL: get_status(private_id) → game_status
-
-IF round_number changed: Reset phase1_done=False, phase2_done=False, update current_round
-
-## Which Phase?
-IF phase1_done == False:
-  Execute PHASE 1, STOP
-ELIF seconds_remaining <= 20 AND phase2_done == False:
-  Execute PHASE 2, STOP
-ELSE:
-  STOP (nothing to do)
-
-# PHASE 1: Send Messages (6 total)
-
-STEP 1: get_supporters(game_status) → players
-STEP 2: FOR EACH in players["supporters"]:
-  send_message("Thanks {name} for last round! Support me again? I appreciate your partnership.", private_id, name)
-STEP 3: FOR EACH in players["others"]:
-  send_message("Hey {name}, support me this round? I'll reciprocate at ~20s. Let's work together!", private_id, name)
-
-Mark phase1_done=True, STOP
-
-# PHASE 2: Register Support (≤20s only)
-
-STEP 1: choose_support_strategic(game_status) → partner
-STEP 2: register_support(private_id, partner)
-
-Mark phase2_done=True, STOP
-
-# Examples
-
-## Round 5 Start (60s)
-get_status("k24rdk") → {'round_number': 5, 'seconds_remaining': 59.2, ...}
-# New round detected, reset flags
-# phase1_done=False, execute PHASE 1:
-get_supporters(game_status) → {"supporters": ["Alice"], "others": ["Bob", "Charlie", "Diana", "Eve", "Frank"]}
-send_message("Thanks Alice...", "k24rdk", "Alice")
-send_message("Hey Bob...", "k24rdk", "Bob")
-send_message("Hey Charlie...", "k24rdk", "Charlie")
-send_message("Hey Diana...", "k24rdk", "Diana")
-send_message("Hey Eve...", "k24rdk", "Eve")
-send_message("Hey Frank...", "k24rdk", "Frank")
-# phase1_done=True, STOP
-
-## Round 5 Mid (35s)
-get_status("k24rdk") → {'round_number': 5, 'seconds_remaining': 34.8, ...}
-# phase1_done=True, phase2_done=False, but seconds > 20
-# STOP (nothing to do)
-
-## Round 5 End (18s)
-get_status("k24rdk") → {'round_number': 5, 'seconds_remaining': 18.1, ...}
-# phase1_done=True, phase2_done=False, seconds <= 20
-# Execute PHASE 2:
-choose_support_strategic(game_status) → "Alice"
-register_support("k24rdk", "Alice")
-# phase2_done=True, STOP
-
-## Round 6 Start (59s)
-get_status("k24rdk") → {'round_number': 6, 'seconds_remaining': 59.5, ...}
-# round_number changed! Reset flags, execute PHASE 1 again...
-"""
+        print(f"Round number: {round_num} Seconds remaining: {seconds} messages received this round: {game_status['messages_received_this_round']}")
+        # Check if new round
+        if round_num != self.current_round:
+            self.current_round = round_num
+            self.phase1_done = False
+            self.phase2_done = False
+            
+        if not self.phase1_done:
+            print("Executing Phase 1...")
+            await self.execute_phase1(game_status)
+            
+        elif not self.phase2_done and seconds <= 20:
+            print("Executing Phase 2...")
+            await self.execute_phase2(game_status)
+            
+        else:
+            print("Waiting...")

@@ -1,3 +1,3 @@
 [
-    ["Vortex", "Phoenix", "Quantum", "Nebula", "Zenith", "Catalyst", "Eclipse", "Axiom", "Prism", "Solstice"]
+    ["Vorx", "Phonee", "Quaatt", "Neul", "Zenii", "Catalyt", "Ekllpx", "Aximm", "Prixs", "Solsce"]
 ]
