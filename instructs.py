@@ -1,4 +1,6 @@
 import json
+import ast
+from evaluator import choose_support_strategic, prepare_message
 from agents import Runner
 
 class GameOrchestrator:
@@ -9,63 +11,64 @@ class GameOrchestrator:
         self.phase1_done = False
         self.phase2_done = False
         
-    async def register(self, names: list[str]):
+    async def register(self, name: str):
         """Simple registration"""
-        prompt = f"Randomly select a name from {", ".join(names)} and call register with the selected name"
+        prompt = f"Register with the selected name: {name}"
         await Runner.run(self.agent, prompt, session=self.session, max_turns=5)
         print("Registered successfully")
         
     async def execute_phase1(self, game_status: dict):
         """Send all messages"""
-        prompt = f"""
-    Execute these steps in order:
-    here is the game status: {game_status}, dont remove any fields when passing it to the functions
-    STEP 1: prepare_message(game_status) → save as messages_to_send
-    STEP 2: for each player in messages_to_send, call send_message(player['player_name'], player['message'])
-    Stop when done.
-
-    if all steps were executed successfully, return true, otherwise return false
-    """
-        r = await Runner.run(self.agent, prompt, session=self.session, max_turns=20)
-        print(f"Phase 1 result: {r.final_output}")
-        self.phase1_done = r.final_output == "true"
+        messages = prepare_message(status=game_status)
+        f_result = "true"
+        for message in messages:
+            prompt = f"here is the message {message}, call send_message(message['player_name'], message['message']) Stop when done. if executed successfully, return true, otherwise return false"
+            r = await Runner.run(self.agent, prompt, session=self.session, max_turns=20)
+            print(f"Phase 1 result: {r.final_output}")
+            if r.final_output != "true":
+                f_result = "false"
+                break
+        self.phase1_done = f_result == "true"
         
     async def execute_phase2(self, game_status: dict):
         """Register support"""
-        prompt = f"""
-    Execute these steps in order:
-    here is the game status: {game_status}, dont remove any fields when passing it to the functions
-    STEP 1: choose_support_strategic(game_status) → save as partner
-    STEP 2: register_support(game_status['private_id'], partner)
-    Stop when done.
-
-    if all steps were executed successfully, return true, otherwise return false
-    """
+        partner = choose_support_strategic(status=game_status)
+        prompt = f"""here is the partner {partner}, register_support(private_id, partner)
+        Stop when done.
+        if all steps were executed successfully, return true, otherwise return false
+        """
         r = await Runner.run(self.agent, prompt, session=self.session, max_turns=10)
         print(f"Phase 2 result: {r.final_output}")
         self.phase2_done = r.final_output == "true"
+
+    async def catch_tool_call(self, tool_name: str):
+        """Get current game state - FAST VERSION"""
+        # Simple prompt - just call the tool
+        prompt = "Call get_status(private_id)"
+        
+        # Execute with max_turns=1 (only need one call)
+        stream = Runner.run_streamed(self.agent, prompt, session=self.session, max_turns=3)
+        last_called_tool = None
+        result = {}
+        
+        async for event in stream.stream_events():
+            if event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        last_called_tool = event.item.raw_item.name
+                    elif event.item.type == "tool_call_output_item":
+                        if last_called_tool == tool_name:
+                            result = ast.literal_eval(json.loads(event.item.output)["text"])
+                            break
+
+        
+        return result
         
     async def run_turn(self):
         """Main game loop - Python decides what to do"""
         # Get game status
         print("=== Turn ===")
-        prompt = """Call get_status(private_id).
-    Return ONLY the exact JSON dictionary returned by get_status. Nothing else.
-    Format:
-    {"player_name": "...", "private_id": "...", "score": ..., "round_number": ..., "seconds_remaining": ..., "other_players": [...], "messages_received_this_round": [...]}
-    Do NOT add:
-    - No explanations
-    - No "Here is the result:"
-    - No "The status is:"
-    - Just the raw JSON dictionary"""
 
-        result = await Runner.run(self.agent, prompt, session=self.session, max_turns=3)
-        result_str = result.final_output
-        if '```' in result_str:
-            start = result_str.find('{')
-            end = result_str.rfind('}') + 1
-            result_str = result_str[start:end]
-        game_status = json.loads(result_str)
+        game_status = await self.catch_tool_call("get_status")
         round_num = game_status['round_number']
         seconds = game_status['seconds_remaining']
 

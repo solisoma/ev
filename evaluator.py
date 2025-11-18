@@ -1,9 +1,5 @@
-import ast
 import statistics
 from typing import Literal
-from mcp.server.fastmcp import FastMCP
-
-mcp = FastMCP("Uburu")
 
 def get_midtiers(game_status: dict) -> list[str]:
     """
@@ -212,12 +208,11 @@ def generate_message(
                     f"If we don't team up THIS ROUND, they win and we both lose. Simple math. "
                     f"Mutual support now - we either rise together or fall separately. Your move."
                 )
-@mcp.tool()
-def prepare_message(game_status: str) -> list[dict[str, str]]:
+
+def prepare_message(status: dict) -> list[dict[str, str]]:
     """
     Prepare message for a player
     """
-    status = ast.literal_eval(game_status) if isinstance(game_status, str) else game_status
     categorized_players = categorize_players(status)
     players_to_send_message_to = get_list_of_players_to_send_message_to(categorized_players)
     final_message_list:list[dict[str, str]] = []
@@ -227,12 +222,10 @@ def prepare_message(game_status: str) -> list[dict[str, str]]:
         final_message_list.append({"player_name": player['player_name'], "message": message})
     return final_message_list
 
-@mcp.tool()
-def choose_support_strategic(game_status: str) -> str:
+def choose_support_strategic(status: dict) -> str:
     """
     Strategic support selection - pure game theory.
     """
-    status = ast.literal_eval(game_status) if isinstance(game_status, str) else game_status
     my_score = status['score']
     other_players = status['other_players']
     messages = status.get('messages_received_this_round', [])
@@ -286,6 +279,3 @@ def choose_support_strategic(game_status: str) -> str:
         return min(other_players, key=lambda x: abs(x['score'] - my_score))['player_name']
     
     return None
-
-if __name__ == "__main__":
-    mcp.run(transport="stdio")

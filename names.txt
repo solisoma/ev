@@ -1,3 +1,0 @@
-[
-    ["Vorx", "Phonee", "Quaatt", "Neul", "Zenii", "Catalyt", "Ekllpx", "Aximm", "Prixs", "Solsce"]
-]
