@@ -9,7 +9,7 @@ from langsmith.wrappers import OpenAIAgentsTracingProcessor
 load_dotenv(override=True)
 MODEL = "gpt-4o-mini"
 PARAMS = {"url": os.getenv("ALLIANCE_MCP_SERVER"), "timeout": 30}
-PLAY_NAME = "Vorx"
+PLAY_NAME = "Vorx3"
 
 async def main():
     session = SQLiteSession(f"{PLAY_NAME}")

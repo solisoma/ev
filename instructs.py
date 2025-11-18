@@ -7,7 +7,7 @@ class GameOrchestrator:
     def __init__(self, agent, session):
         self.agent = agent
         self.session = session
-        self.current_round = -1
+        self.current_round = 0
         self.phase1_done = False
         self.phase2_done = False
         
@@ -79,11 +79,11 @@ class GameOrchestrator:
             self.phase1_done = False
             self.phase2_done = False
             
-        if not self.phase1_done:
+        if not self.phase1_done and self.current_round != 0:
             print("Executing Phase 1...")
             await self.execute_phase1(game_status)
             
-        elif not self.phase2_done and seconds <= 20:
+        elif not self.phase2_done and seconds <= 20 and self.current_round != 0:
             print("Executing Phase 2...")
             await self.execute_phase2(game_status)
             
